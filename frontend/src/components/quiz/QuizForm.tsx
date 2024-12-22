@@ -1,51 +1,45 @@
 import React, { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
-import axios from 'axios';
 import { useRouter } from 'next/router';
+import { MapPin, Flame, User } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useAuth } from '../../../contexts/AuthContext';
 
-
-interface QuizFormData {
+interface FormData {
   fullName: string;
   phoneNumber: string;
   gender: string;
   dateOfBirth: string;
   location: string;
   favouriteSports: string[];
-  customSport: string;
 }
 
-const LOCATIONS = [
-  'North London',
-  'South London',
-  'East London',
-  'West London',
-  'Central London'
-];
+interface FormErrors {
+  fullName?: string;
+  phoneNumber?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  location?: string;
+  favouriteSports?: string;
+  submit?: string;
+}
 
-const SPORTS = [
-  'Football',
-  'Basketball',
-  'Tennis',
-  'Cricket',
-  'Rugby',
-  'Other'
-];
+interface QuizFormProps {
+  onClose: () => void;
+}
 
-const QuizForm = () => {
-    const router = useRouter(); // <-- Add this line
-
-  const [formData, setFormData] = useState<QuizFormData>({
+const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [formData, setFormData] = useState<FormData>({
     fullName: '',
     phoneNumber: '',
     gender: '',
     dateOfBirth: '',
     location: '',
-    favouriteSports: [],
-    customSport: ''
+    favouriteSports: []
   });
 
-  const [errors, setErrors] = useState<Partial<QuizFormData>>({});
-  const [step, setStep] = useState(1);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -53,12 +47,8 @@ const QuizForm = () => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user types
-    if (errors[name as keyof QuizFormData]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
+    if (errors[name as keyof FormErrors]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
 
@@ -71,126 +61,101 @@ const QuizForm = () => {
     });
   };
 
-  const validateStep = (stepNumber: number) => {
-    const newErrors: Partial<QuizFormData> = {};
-
-    if (stepNumber === 1) {
-      if (!formData.fullName) newErrors.fullName = 'Name is required';
-      if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
-      if (!formData.gender) newErrors.gender = 'Gender is required';
-    } else if (stepNumber === 2) {
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
-      if (!formData.location) newErrors.location = 'Location is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const saveFormData = () => {
+    sessionStorage.setItem('quizData', JSON.stringify(formData));
   };
 
-  const handleNextStep = () => {
-    if (validateStep(step)) {
-      setStep(prev => prev + 1);
-    }
-  };
-
-  const handlePrevStep = () => {
-    setStep(prev => prev - 1);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (validateStep(step)) {
-      try {
-        // First, save the quiz responses
-        const response = await axios.post('http://localhost:8000/api/quiz-responses/', formData);
-        
-        // Redirect to sessions page with quiz parameters
-        router.push({
-          pathname: '/sessions',
-          query: {
-            location: formData.location,
-            sports: formData.favouriteSports.join(','),
-            fromQuiz: 'true'
-          }
-        });
-      } catch (error) {
-        console.error('Error submitting quiz:', error);
-        // Handle error appropriately
-      }
+    
+    const newErrors: FormErrors = {};
+    if (!formData.fullName) newErrors.fullName = 'Full name is required';
+    if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
+    if (!formData.gender) newErrors.gender = 'Gender is required';
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (!formData.location) newErrors.location = 'Location is required';
+    if (formData.favouriteSports.length === 0) newErrors.favouriteSports = 'Select at least one sport';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Save form data and redirect based on auth status
+    saveFormData();
+
+    if (!user) {
+      onClose();
+      router.push({
+        pathname: '/register',
+        query: { returnUrl: '/quiz/recommendations' }
+      });
+    } else {
+      onClose();
+      router.push({
+        pathname: '/sessions',
+        query: {
+          location: formData.location,
+          sports: formData.favouriteSports.join(','),
+          fromQuiz: 'true'
+        }
+      });
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          {[1, 2, 3].map((stepNumber) => (
-            <div
-              key={stepNumber}
-              className={`w-1/3 h-2 rounded-full ${
-                stepNumber <= step ? 'bg-arena-orange' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-        <p className="text-center text-gray-600">Step {step} of 3</p>
-      </div>
+    <div className="max-w-3xl mx-auto">
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {step === 1 && (
-          <div className="space-y-6">
+
+      <form onSubmit={handleSubmit} className="space-y-12">
+        {/* Personal Information */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 mb-6">
+            <User className="w-5 h-5 text-arena-orange" />
+            <h3 className="text-xl font-semibold">Personal Information</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
+              <label className="block text-sm font-medium mb-2">Full Name</label>
               <input
                 type="text"
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange
-                  ${errors.fullName ? 'border-red-500' : 'border-gray-300'}`}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 placeholder="Enter your full name"
               />
               {errors.fullName && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.fullName}
-                </p>
+                <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
               )}
             </div>
 
+            {/* Phone Number */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
+              <label className="block text-sm font-medium mb-2">Phone Number</label>
               <input
                 type="tel"
                 name="phoneNumber"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange
-                  ${errors.phoneNumber ? 'border-red-500' : 'border-gray-300'}`}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 placeholder="Enter your phone number"
               />
               {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.phoneNumber}
-                </p>
+                <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>
               )}
             </div>
 
+            {/* Gender */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gender
-              </label>
+              <label className="block text-sm font-medium mb-2">Gender</label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange
-                  ${errors.gender ? 'border-red-500' : 'border-gray-300'}`}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
               >
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
@@ -199,126 +164,100 @@ const QuizForm = () => {
                 <option value="prefer-not-to-say">Prefer not to say</option>
               </select>
               {errors.gender && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.gender}
-                </p>
+                <p className="text-red-500 text-sm mt-1">{errors.gender}</p>
               )}
             </div>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-6">
+            {/* Date of Birth */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date of Birth
-              </label>
+              <label className="block text-sm font-medium mb-2">Date of Birth</label>
               <input
                 type="date"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange
-                  ${errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'}`}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
               />
               {errors.dateOfBirth && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.dateOfBirth}
-                </p>
+                <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
               )}
             </div>
+          </div>
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Location
-              </label>
-              <select
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange
-                  ${errors.location ? 'border-red-500' : 'border-gray-300'}`}
+        {/* Location Selection */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-6">
+            <MapPin className="w-5 h-5 text-arena-orange" />
+            <h3 className="text-xl font-semibold">Where do you want to play?</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'].map(loc => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, location: loc }))}
+                className={`px-6 py-4 rounded-2xl border-2 transition-all ${
+                  formData.location === loc
+                    ? 'border-black bg-black text-white'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
               >
-                <option value="">Select location</option>
-                {LOCATIONS.map(location => (
-                  <option key={location} value={location}>{location}</option>
-                ))}
-              </select>
-              {errors.location && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.location}
-                </p>
-              )}
-            </div>
+                {loc}
+              </button>
+            ))}
           </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                Favourite Sports
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {SPORTS.map(sport => (
-                  <button
-                    key={sport}
-                    type="button"
-                    onClick={() => handleSportSelection(sport)}
-                    className={`px-4 py-2 rounded-lg border ${
-                      formData.favouriteSports.includes(sport)
-                        ? 'bg-arena-orange text-white border-arena-orange'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-arena-orange'
-                    }`}
-                  >
-                    {sport}
-                  </button>
-                ))}
-              </div>
-              {formData.favouriteSports.includes('Other') && (
-                <input
-                  type="text"
-                  name="customSport"
-                  value={formData.customSport}
-                  onChange={handleInputChange}
-                  className="mt-3 w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange"
-                  placeholder="Enter your sport"
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-between mt-8">
-          {step > 1 && (
-            <button
-              type="button"
-              onClick={handlePrevStep}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              Back
-            </button>
-          )}
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={handleNextStep}
-              className="ml-auto px-6 py-2 bg-arena-orange text-white rounded-lg hover:bg-arena-orange/90"
-            >
-              Next
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="ml-auto px-6 py-2 bg-arena-orange text-white rounded-lg hover:bg-arena-orange/90"
-            >
-              Find Sessions
-            </button>
+          {errors.location && (
+            <p className="text-red-500 text-sm mt-2">{errors.location}</p>
           )}
         </div>
+
+        {/* Sports Selection */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-6">
+            <Flame className="w-5 h-5 text-arena-orange" />
+            <h3 className="text-xl font-semibold">What sports do you play?</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {['FOOTBALL', 'BASKETBALL', 'TENNIS', 'CRICKET', 'RUGBY'].map(sport => (
+              <motion.button
+                key={sport}
+                type="button"
+                onClick={() => handleSportSelection(sport)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`px-6 py-4 rounded-2xl border-2 transition-all ${
+                  formData.favouriteSports.includes(sport)
+                    ? 'border-black bg-black text-white'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {sport}
+              </motion.button>
+            ))}
+          </div>
+          {errors.favouriteSports && (
+            <p className="text-red-500 text-sm mt-2">{errors.favouriteSports}</p>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex justify-center pt-6">
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-black text-white px-12 py-4 rounded-full text-lg font-medium hover:bg-black/90 transition-colors"
+          >
+            Find Sessions
+          </motion.button>
+        </div>
+
+        {errors.submit && (
+          <div className="text-red-500 text-center mt-4">
+            {errors.submit}
+          </div>
+        )}
       </form>
     </div>
   );

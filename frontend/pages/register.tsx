@@ -13,6 +13,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+  const { returnUrl } = router.query;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +32,27 @@ const RegisterPage = () => {
 
       // If registration is successful, log in
       await login(email, password);
-      router.push('/');
+
+      // Check if there's quiz data in session storage
+      const quizData = sessionStorage.getItem('quizData');
+
+      if (quizData && returnUrl === '/quiz/recommendations') {
+        const parsedQuizData = JSON.parse(quizData);
+        // Clear the stored quiz data
+        sessionStorage.removeItem('quizData');
+        
+        // Redirect to sessions with quiz data
+        router.push({
+          pathname: '/sessions',
+          query: {
+            location: parsedQuizData.location,
+            sports: parsedQuizData.favouriteSports.join(','),
+            fromQuiz: 'true'
+          }
+        });
+      } else {
+        router.push('/');
+      }
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(
@@ -47,7 +68,7 @@ const RegisterPage = () => {
     <Layout>
       <div className="min-h-screen flex items-center justify-center">
         <div className="max-w-md w-full px-6 py-8 bg-white shadow-lg rounded-lg">
-          <h2 className="text-3xl font-oswald font-bold text-center mb-8">
+          <h2 className="text-3xl font-bold text-center mb-8">
             Sign Up for ARENA
           </h2>
           
@@ -66,7 +87,7 @@ const RegisterPage = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange"
+                className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 required
                 disabled={loading}
               />
@@ -80,7 +101,7 @@ const RegisterPage = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange"
+                className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 required
                 disabled={loading}
               />
@@ -94,7 +115,7 @@ const RegisterPage = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-arena-orange focus:border-arena-orange"
+                className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 required
                 disabled={loading}
               />
@@ -103,22 +124,34 @@ const RegisterPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full bg-arena-orange text-white py-2 rounded-lg transition-colors ${
-                loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-arena-orange/90'
-              }`}
+              className="w-full bg-black text-white py-3 rounded-full font-medium hover:bg-black/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating Account...' : 'Sign Up'}
             </button>
-            </form>
+          </form>
 
-             <div className="text-center mt-4">
+          <div className="text-center mt-6">
             <p className="text-gray-600">
               Already have an account?{' '}
-              <Link href="/login" className="text-arena-orange hover:underline">
-                Login
-              </Link>
+<Link 
+  href={{
+    pathname: '/login',
+    query: returnUrl ? { returnUrl, fromQuiz: true } : {}
+  }}
+  className="text-black hover:text-gray-700 transition-colors font-medium"
+>
+  Login
+</Link>
             </p>
           </div>
+
+          {returnUrl === '/quiz/recommendations' && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 text-center">
+                Sign up to see your recommended sessions based on your preferences
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Layout>

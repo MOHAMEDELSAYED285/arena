@@ -7,7 +7,7 @@ module.exports = {
     theme: {
       extend: {
         colors: {
-          'arena-orange': '#FF6B00',
+          'arena-orange': '#FFA50B',
           'arena-yellow': '#FFD700',
         },
         fontFamily: {

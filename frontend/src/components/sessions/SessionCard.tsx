@@ -1,15 +1,33 @@
 import React from 'react';
-import { Clock, MapPin, Users, DollarSign } from 'lucide-react';
+import Image from 'next/image';
+import { Clock, MapPin, Users } from 'lucide-react';
 
 interface SessionCardProps {
   sport: string;
   dateTime: string;
   location: string;
   gameSize: string;
-  price: number;
+  price: number | string;
   slotsRemaining: number;
-  imageUrl?: string; // Make imageUrl optional
+  matchScore?: number;
 }
+
+const formatPrice = (price: number | string): string => {
+  const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return `£${numericPrice.toFixed(2)}`;
+};
+
+const getVenueCategoryImage = (sport: string): string => {
+  const sportImages: { [key: string]: string } = {
+    'FOOTBALL': '/football-venue.jpg',
+    'BASKETBALL': '/basketball-venue.jpg',
+    'TENNIS': '/tennis-venue.jpg',
+    'CRICKET': '/cricket-venue.jpg',
+    'RUGBY': '/rugby-venue.jpg'
+  };
+
+  return sportImages[sport] || '/default-venue.jpg';
+};
 
 const SessionCard: React.FC<SessionCardProps> = ({
   sport,
@@ -18,52 +36,75 @@ const SessionCard: React.FC<SessionCardProps> = ({
   gameSize,
   price,
   slotsRemaining,
-  imageUrl = "/placeholder.svg?height=400&width=600" // Add default value
+  matchScore
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 h-full">
-      <div className="relative h-32">
-        <img 
-          src={imageUrl}
-          alt={sport}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden hover:shadow-md transition-all duration-300">
+      {/* Image Section */}
+      <div className="relative h-48">
+        <div className="relative w-full h-full">
+          <Image 
+            src={getVenueCategoryImage(sport)}
+            alt={`${sport} venue`}
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        </div>
+
+        {/* Match Score Badge */}
+        {matchScore !== undefined && matchScore > 0 && (
+          <div className="absolute top-4 right-4">
+            <div className="bg-white/90 backdrop-blur-sm text-black px-3 py-1.5 rounded-full text-sm font-medium">
+              {Math.round(matchScore * 100)}% Match
+            </div>
+          </div>
+        )}
+
+        {/* Sport Title & Slots */}
         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-          <h3 className="text-lg font-bold text-white">{sport}</h3>
-          <span className="bg-arena-orange text-white px-3 py-1 rounded-full text-sm font-semibold">
+          <h3 className="text-xl font-bold text-white">{sport}</h3>
+          <span className="bg-white/90 backdrop-blur-sm text-black px-3 py-1.5 rounded-full text-sm font-medium">
             {slotsRemaining} slots left
           </span>
         </div>
       </div>
 
-      <div className="p-4 space-y-2">
-        <div className="flex items-center justify-between text-gray-600">
-          <div className="flex items-center space-x-2">
-            <Clock className="w-5 h-5 text-arena-orange" />
-            <span>{dateTime}</span>
+      {/* Content Section */}
+      <div className="p-6 space-y-4">
+        {/* Date & Location */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">Time</span>
+            </div>
+            <p className="font-medium">{dateTime}</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <MapPin className="w-5 h-5 text-arena-orange" />
-            <span>{location}</span>
+          
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-gray-500">
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm">Location</span>
+            </div>
+            <p className="font-medium">{location}</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 text-gray-600">
-          <Users className="w-5 h-5 text-arena-orange" />
-          <span>{gameSize}</span>
+        {/* Game Size */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Users className="w-4 h-4" />
+            <span className="text-sm">Game Size</span>
+          </div>
+          <p className="font-medium">{gameSize}</p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-1 text-arena-orange font-bold text-base">
-            <DollarSign className="w-6 h-6" />
-            <span>{price}</span>
-          </div>
-          <button 
-            className="bg-arena-orange text-white px-6 py-2 rounded-full font-semibold 
-                       hover:bg-arena-orange/90 transition-colors duration-200 
-                       focus:outline-none focus:ring-2 focus:ring-arena-orange focus:ring-offset-2"
-          >
+        {/* Price & Book Button */}
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-2xl font-bold">{formatPrice(price)}</span>
+          <button className="bg-black text-white px-6 py-2 rounded-full font-medium hover:bg-black/90 transition-colors">
             Book Now
           </button>
         </div>
@@ -73,4 +114,3 @@ const SessionCard: React.FC<SessionCardProps> = ({
 };
 
 export default SessionCard;
-

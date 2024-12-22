@@ -27,13 +27,13 @@ class Session(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        db_table = 'sessions'
-        ordering = ['date_time']
-
     @property
     def slots_remaining(self):
         return self.total_slots - self.booked_slots
+
+    class Meta:
+        db_table = 'sessions'
+        ordering = ['date_time']
 
     def __str__(self):
         return f"{self.sport} - {self.location} - {self.date_time}"
