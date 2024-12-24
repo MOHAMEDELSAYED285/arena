@@ -1,6 +1,7 @@
+# backend/api/admin.py
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from .models import Session, Booking, User
+from .models import Session, Booking, User, VenueOwner
 from django import forms
 
 class UserAdminForm(forms.ModelForm):
@@ -45,7 +46,6 @@ class UserAdmin(admin.ModelAdmin):
         return ", ".join(obj.favourite_sports) if obj.favourite_sports else ""
     get_sports_display.short_description = 'Favourite Sports'
 
-# Register other models as before
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
     list_display = ('sport', 'date_time', 'location', 'price', 'slots_remaining')
@@ -57,3 +57,10 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = ('user', 'session', 'status', 'created_at')
     list_filter = ('status',)
     search_fields = ('user__username', 'session__sport')
+
+@admin.register(VenueOwner)
+class VenueOwnerAdmin(admin.ModelAdmin):
+    list_display = ('first_name', 'last_name', 'email', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('first_name', 'last_name', 'email', 'venue_details')
+    ordering = ('-created_at',)

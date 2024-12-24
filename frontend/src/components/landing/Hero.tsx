@@ -1,11 +1,36 @@
 import React from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface HeroProps {
   onGetStarted: () => void;
 }
 
 const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const handleGetStarted = () => {
+    const savedPreferences = localStorage.getItem('userQuizPreferences');
+    
+    if (savedPreferences && user) {
+      // If user has saved preferences and is logged in, redirect to sessions
+      const preferences = JSON.parse(savedPreferences);
+      router.push({
+        pathname: '/sessions',
+        query: {
+          location: preferences.location,
+          sports: preferences.favouriteSports.join(','),
+          fromQuiz: 'true'
+        }
+      });
+    } else {
+      // If no preferences or not logged in, show quiz modal
+      onGetStarted();
+    }
+  };
+
   return (
     <section className="w-full min-h-[calc(100vh-4rem)] bg-white flex items-center">
       <div className="max-w-[1400px] w-full mx-auto px-8">
@@ -26,7 +51,7 @@ const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <button 
-                onClick={onGetStarted}
+                onClick={handleGetStarted}
                 className="bg-black text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-black/90 transition-colors"
               >
                 Get Started
@@ -58,7 +83,7 @@ const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
             <div className="col-span-5 row-span-2 col-start-8">
               <div className="relative w-full h-full overflow-hidden rounded-3xl">
                 <Image
-                  src="/assets/tennis.jpg"
+                  src="/assets/tennis.jpeg"
                   alt="Tennis court"
                   fill
                   className="object-cover"

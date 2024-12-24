@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import axios from 'axios';
 import Layout from '@/components/shared/Layout';
 import SessionCard from '@/components/sessions/SessionCard';
 import { Filter, Calendar, MapPin } from 'lucide-react';
-import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Session {
   id: number;
@@ -31,59 +32,74 @@ const SessionsPage = () => {
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   const [filters, setFilters] = useState<Filters>({
     sport: '',
     date: '',
     location: ''
   });
 
-  // Available options for filters
   const sportOptions = ['All', 'FOOTBALL', 'BASKETBALL', 'TENNIS', 'CRICKET', 'RUGBY'];
   const locationOptions = ['All', 'NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
 
   useEffect(() => {
-    // In your sessions page
-const fetchSessions = async () => {
-    if (!router.isReady) return;
-  
-    try {
-      let response;
-      const token = localStorage.getItem('token'); // Get the stored token
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+    const fetchSessions = async () => {
+      if (!router.isReady) return;
+
+      try {
+        let response;
+        const token = localStorage.getItem('token');
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        if (fromQuiz === 'true' && sports) {
+          // Get sessions based on quiz responses
+          console.log('Fetching sessions based on quiz responses...');
+          response = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/quiz-preferences/`,
+            {
+              favouriteSports: typeof sports === 'string' ? sports.split(',') : sports,
+              location: location
+            },
+            config
+          );
+          console.log('Quiz response data:', response.data);
+          const recommendedSessions = response.data.recommendations || [];
+          setSessions(recommendedSessions);
+          setFilteredSessions(recommendedSessions);
+        } else {
+          // Get all sessions
+          console.log('Fetching all sessions...');
+          response = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/sessions/`,
+            config
+          );
+          console.log('All sessions data:', response.data);
+          const allSessions = response.data.results || [];
+          setSessions(allSessions);
+          setFilteredSessions(allSessions);
         }
-      };
-  
-      if (fromQuiz === 'true' && sports) {
-        response = await axios.post(
-          'http://localhost:8000/api/quiz-responses/',
-          {
-            favouriteSports: typeof sports === 'string' ? sports.split(',') : sports
-          },
-          config  // Add the config here
-        );
-  
-        setSessions(response.data.recommendations || []);
-      } else {
-        response = await axios.get('http://localhost:8000/api/sessions/', config);
-        setSessions(response.data.results || []);
+
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Error fetching sessions:', error.response || error);
+        setError(error.response?.data?.error || 'Failed to fetch sessions');
+        setLoading(false);
       }
-  
-      setLoading(false);
-    } catch (error: any) {
-      console.error('Error fetching sessions:', error.response || error);
-      setError(error.response?.data?.error || 'Failed to fetch sessions');
-      setLoading(false);
-    }
-  };
+    };
 
     fetchSessions();
-  }, [router.isReady, sports, fromQuiz]);
+  }, [router.isReady, sports, fromQuiz, location, user]);
 
-  // Apply filters to sessions
+  // Apply filters when filter state or sessions change
   useEffect(() => {
+    console.log('Applying filters:', filters);
+    console.log('Current sessions:', sessions);
+    
     let result = [...sessions];
 
     if (filters.sport && filters.sport !== 'All') {
@@ -101,15 +117,27 @@ const fetchSessions = async () => {
       );
     }
 
+    console.log('Filtered results:', result);
     setFilteredSessions(result);
   }, [filters, sessions]);
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
+    console.log('Filter changed:', key, value);
     setFilters(prev => ({
       ...prev,
       [key]: value
     }));
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl">Loading sessions...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -168,37 +196,38 @@ const fetchSessions = async () => {
             </div>
           </div>
         </div>
-        
+
         {error && (
-          <div className="text-center text-red-600 mb-8">
+          <div className="text-red-500 text-center mb-8">
             {error}
           </div>
         )}
         
-        {loading ? (
-          <div className="text-center">Loading sessions...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredSessions.length > 0 ? (
-              filteredSessions.map((session) => (
-                <SessionCard 
-                  key={session.id}
-                  sport={session.sport}
-                  dateTime={new Date(session.date_time).toLocaleString()}
-                  location={session.location}
-                  gameSize={session.game_size}
-                  price={session.price}
-                  slotsRemaining={session.slots_remaining}
-                  matchScore={session.match_score}
-                />
-              ))
-            ) : (
-              <div className="col-span-full text-center text-gray-600">
-                No sessions found matching your criteria.
-              </div>
-            )}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {sessions.length === 0 ? (
+            <div className="col-span-full text-center text-gray-600">
+              No sessions available at the moment.
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="col-span-full text-center text-gray-600">
+              No sessions found matching your filter criteria.
+            </div>
+          ) : (
+            filteredSessions.map((session) => (
+              <SessionCard 
+                key={session.id}
+                id={session.id}
+                sport={session.sport}
+                dateTime={new Date(session.date_time).toLocaleString()}
+                location={session.location}
+                gameSize={session.game_size}
+                price={session.price}
+                slotsRemaining={session.slots_remaining}
+                matchScore={session.match_score}
+              />
+            ))
+          )}
+        </div>
       </div>
     </Layout>
   );

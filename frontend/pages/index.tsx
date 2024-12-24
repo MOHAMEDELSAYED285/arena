@@ -5,6 +5,8 @@ import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import ExploreVenues from '@/components/landing/ExploreVenues';
 import ArenaOffersSection from '@/components/landing/ArenaOffersSection';
 import QuizModal from '@/components/landing/QuizModal';
+import ArenaDownloadSection from '@/components/landing/ArenaDownloadSection';
+
 
 const HomePage = () => {
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
@@ -12,9 +14,10 @@ const HomePage = () => {
   return (
     <Layout>
       <Hero onGetStarted={() => setIsQuizModalOpen(true)} />
-      <HowItWorksSection />
       <ExploreVenues />
-      <ArenaOffersSection />
+        <ArenaDownloadSection/>
+        <HowItWorksSection onGetStarted={() => setIsQuizModalOpen(true)} />
+        <ArenaOffersSection />
       <QuizModal 
         isOpen={isQuizModalOpen} 
         onClose={() => setIsQuizModalOpen(false)} 

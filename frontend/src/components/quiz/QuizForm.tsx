@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import axios from 'axios';
 import { MapPin, Flame, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -40,6 +41,53 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [loading, setLoading] = useState(false);
+
+  // Load user preferences from backend or localStorage
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      if (user) {
+        try {
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/quiz-preferences/user/`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+              }
+            }
+          );
+
+          const { preferences } = response.data;
+          if (preferences) {
+            setFormData(prev => ({
+              ...prev,
+              ...preferences
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading preferences:', error);
+          // Fallback to localStorage if API fails
+          loadLocalPreferences();
+        }
+      } else {
+        loadLocalPreferences();
+      }
+    };
+
+    const loadLocalPreferences = () => {
+      const savedPreferences = localStorage.getItem('userQuizPreferences');
+      if (savedPreferences) {
+        const preferences = JSON.parse(savedPreferences);
+        setFormData(prev => ({
+          ...prev,
+          location: preferences.location || '',
+          favouriteSports: preferences.favouriteSports || []
+        }));
+      }
+    };
+
+    loadUserPreferences();
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -59,15 +107,48 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
         : [...prev.favouriteSports, sport];
       return { ...prev, favouriteSports: sports };
     });
+    if (errors.favouriteSports) {
+      setErrors(prev => ({ ...prev, favouriteSports: undefined }));
+    }
   };
 
-  const saveFormData = () => {
+  const savePreferences = async () => {
+    if (user) {
+      try {
+        // Save to backend
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/quiz-preferences/`,
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          }
+        );
+
+        // Cache recommendations
+        if (response.data.recommendations) {
+          sessionStorage.setItem('recommendedSessions', 
+            JSON.stringify(response.data.recommendations)
+          );
+        }
+      } catch (error) {
+        console.error('Error saving preferences:', error);
+        throw error;
+      }
+    }
+
+    // Save to localStorage as backup
+    const preferencesToSave = {
+      location: formData.location,
+      favouriteSports: formData.favouriteSports,
+      lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem('userQuizPreferences', JSON.stringify(preferencesToSave));
     sessionStorage.setItem('quizData', JSON.stringify(formData));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
+  const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formData.fullName) newErrors.fullName = 'Full name is required';
     if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
@@ -76,37 +157,50 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
     if (!formData.location) newErrors.location = 'Location is required';
     if (formData.favouriteSports.length === 0) newErrors.favouriteSports = 'Select at least one sport';
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    // Save form data and redirect based on auth status
-    saveFormData();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
 
-    if (!user) {
-      onClose();
-      router.push({
-        pathname: '/register',
-        query: { returnUrl: '/quiz/recommendations' }
-      });
-    } else {
-      onClose();
-      router.push({
-        pathname: '/sessions',
-        query: {
-          location: formData.location,
-          sports: formData.favouriteSports.join(','),
-          fromQuiz: 'true'
-        }
-      });
+    try {
+      if (!validateForm()) {
+        setLoading(false);
+        return;
+      }
+
+      await savePreferences();
+
+      if (!user) {
+        onClose();
+        router.push({
+          pathname: '/register',
+          query: { returnUrl: '/quiz/recommendations' }
+        });
+      } else {
+        onClose();
+        router.push({
+          pathname: '/sessions',
+          query: {
+            location: formData.location,
+            sports: formData.favouriteSports.join(','),
+            fromQuiz: 'true'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setErrors({ submit: 'An error occurred. Please try again.' });
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Rest of your component JSX remains the same
   return (
     <div className="max-w-3xl mx-auto">
-
-
       <form onSubmit={handleSubmit} className="space-y-12">
         {/* Personal Information */}
         <div className="space-y-6">
@@ -126,6 +220,7 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 placeholder="Enter your full name"
+                disabled={loading}
               />
               {errors.fullName && (
                 <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
@@ -142,6 +237,7 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
                 placeholder="Enter your phone number"
+                disabled={loading}
               />
               {errors.phoneNumber && (
                 <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>
@@ -156,6 +252,7 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
                 value={formData.gender}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
+                disabled={loading}
               >
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
@@ -177,6 +274,7 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-black transition-colors"
+                disabled={loading}
               />
               {errors.dateOfBirth && (
                 <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
@@ -193,18 +291,21 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'].map(loc => (
-              <button
+              <motion.button
                 key={loc}
                 type="button"
-                onClick={() => setFormData(prev => ({ ...prev, location: loc }))}
+                onClick={() => !loading && setFormData(prev => ({ ...prev, location: loc }))}
                 className={`px-6 py-4 rounded-2xl border-2 transition-all ${
                   formData.location === loc
                     ? 'border-black bg-black text-white'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                whileHover={!loading ? { scale: 1.02 } : {}}
+                whileTap={!loading ? { scale: 0.98 } : {}}
+                disabled={loading}
               >
                 {loc}
-              </button>
+              </motion.button>
             ))}
           </div>
           {errors.location && (
@@ -223,14 +324,15 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
               <motion.button
                 key={sport}
                 type="button"
-                onClick={() => handleSportSelection(sport)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                onClick={() => !loading && handleSportSelection(sport)}
+                whileHover={!loading ? { scale: 1.02 } : {}}
+                whileTap={!loading ? { scale: 0.98 } : {}}
                 className={`px-6 py-4 rounded-2xl border-2 transition-all ${
                   formData.favouriteSports.includes(sport)
                     ? 'border-black bg-black text-white'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={loading}
               >
                 {sport}
               </motion.button>
@@ -245,11 +347,12 @@ const QuizForm: React.FC<QuizFormProps> = ({ onClose }) => {
         <div className="flex justify-center pt-6">
           <motion.button
             type="submit"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="bg-black text-white px-12 py-4 rounded-full text-lg font-medium hover:bg-black/90 transition-colors"
+            disabled={loading}
+            whileHover={!loading ? { scale: 1.02 } : {}}
+            whileTap={!loading ? { scale: 0.98 } : {}}
+            className="bg-black text-white px-12 py-4 rounded-full text-lg font-medium hover:bg-black/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Find Sessions
+            {loading ? 'Finding Sessions...' : 'Find Sessions'}
           </motion.button>
         </div>
 

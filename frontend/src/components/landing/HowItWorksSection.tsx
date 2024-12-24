@@ -1,199 +1,121 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
-import Image from 'next/image';
+'use client'
 
-// 1. Define the possible tabs as a type
-type TabType = 'players' | 'venues';
+import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { Calendar, Share2, PlayCircle } from 'lucide-react'
+import { useRouter } from 'next/router'
+import { useAuth } from '../../../contexts/AuthContext'
 
-// 2. Define the shape of each step
-interface StepData {
-  title: string;
-  description: string;
-  image: string;
+interface HowItWorksSectionProps {
+  onGetStarted: () => void;
 }
 
-// 3. Define the shape of the steps object
-interface Steps {
-  players: StepData[];
-  venues: StepData[];
-}
+const steps = [
+  {
+    number: "01",
+    title: "Find & Book",
+    description: "Browse and book your preferred sports venues across London with real-time availability",
+    icon: Calendar,
+    imageUrl: "/assets/find-venue.png"
+  },
+  {
+    number: "02",
+    title: "Share & Split",
+    description: "Invite your teammates and automatically split the costs. No more chasing payments",
+    icon: Share2,
+    imageUrl: "/assets/split-payment.png"
+  },
+  {
+    number: "03",
+    title: "Play & Enjoy",
+    description: "Show up and play! We handle all the booking details so you can focus on your game",
+    icon: PlayCircle,
+    imageUrl: "/assets/play-game.png"
+  }
+];
 
-const HowItWorksSection: React.FC = () => {
-  // 4. Annotate activeTab with the TabType
-  const [activeTab, setActiveTab] = useState<TabType>('players');
+export default function HowItWorksSection({ onGetStarted }: HowItWorksSectionProps) {
+  const router = useRouter()
+  const { user } = useAuth()
 
-  const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
-
-  // 5. Annotate steps as Steps
-  const steps: Steps = {
-    players: [
-      {
-        title: 'Find and Book Venues',
-        description:
-          'Discover nearby courts and fields. Filter by sport, location, and amenities.',
-        image: '/assets/explore-venue.jpg',
-      },
-      {
-        title: 'Choose Your Time',
-        description:
-          'See real-time availability and instantly book your preferred slot.',
-        image: '/assets/select-time.jpg',
-      },
-      {
-        title: 'Share With Team',
-        description:
-          'Split costs automatically and manage team payments in one place.',
-        image: '/assets/split-payment.jpg',
-      },
-    ],
-    venues: [
-      {
-        title: 'List Your Space',
-        description:
-          'Create your venue profile with photos, amenities, and pricing.',
-        image: '/assets/list-venue.jpg',
-      },
-      {
-        title: 'Accept Bookings',
-        description:
-          'Manage your calendar and handle bookings with ease.',
-        image: '/assets/manage-bookings.jpg',
-      },
-      {
-        title: 'Track Performance',
-        description:
-          'Monitor bookings, revenue, and ratings all in one dashboard.',
-        image: '/assets/grow-business.jpg',
-      },
-    ],
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.15 },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: 'easeOut' },
-    },
+  const handleGetStarted = () => {
+    const savedPreferences = localStorage.getItem('userQuizPreferences');
+    
+    if (savedPreferences && user) {
+      // If user has saved preferences and is logged in, redirect to sessions
+      const preferences = JSON.parse(savedPreferences);
+      router.push({
+        pathname: '/sessions',
+        query: {
+          location: preferences.location,
+          sports: preferences.favouriteSports.join(','),
+          fromQuiz: 'true'
+        }
+      });
+    } else {
+      // If no preferences or not logged in, show quiz modal
+      onGetStarted();
+    }
   };
 
   return (
-    <section
-      className="py-20 bg-gray-50"
-      aria-labelledby="how-it-works-title"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 text-center">
-          <h2
-            id="how-it-works-title"
-            className="text-4xl font-bold text-gray-900"
-          >
-            How It <span className="text-arena-orange">Works</span>
+    <section className="py-24 bg-white" id="how-it-works">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl font-bold mb-4">
+            <span className="text-black">HOW IT </span>
+            <span className="text-[#FFA50B]">WORKS</span>
           </h2>
+          <p className="text-gray-600">
+            Book your next game in minutes with our seamless process
+          </p>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-12 flex justify-center">
-          <div
-            className="inline-flex rounded-lg bg-white p-1 shadow-sm"
-            role="tablist"
-            aria-label="User type selection"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {steps.map((step, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.2 }}
+              className="bg-white rounded-xl shadow-md p-8 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex justify-between items-center mb-12">
+                <h3 className="text-2xl font-bold">Step {step.number}</h3>
+                <div className="w-12 h-12 rounded-full bg-[#FFA50B]/10 flex items-center justify-center">
+                  {step.icon && <step.icon className="w-6 h-6 text-[#FFA50B]" />}
+                </div>
+              </div>
+              
+              <div className="relative h-48 mb-8">
+                <Image
+                  src={step.imageUrl}
+                  alt={step.title}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+
+              <h4 className="text-xl font-bold mb-3">{step.title}</h4>
+              <p className="text-gray-600">{step.description}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="mt-16 text-center">
+          <button 
+            onClick={handleGetStarted}
+            className="bg-[#FFA50B] text-white px-12 py-4 rounded-full font-semibold hover:bg-[#FFA50B]/90 transition-colors mb-4"
           >
-            {(['players', 'venues'] as TabType[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`relative rounded-md px-8 py-2.5 text-sm font-medium transition-all duration-200 
-                  ${
-                    activeTab === tab
-                      ? 'text-white shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                role="tab"
-                aria-selected={activeTab === tab}
-                aria-controls={`${tab}-panel`}
-                id={`${tab}-tab`}
-              >
-                {activeTab === tab && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute inset-0 rounded-md bg-arena-orange"
-                    transition={{
-                      type: 'spring',
-                      bounce: 0.2,
-                      duration: 0.6,
-                    }}
-                  />
-                )}
-                <span className="relative z-10 capitalize">
-                  {tab === 'players' ? 'For Players' : 'For Venues'}
-                </span>
-              </button>
-            ))}
-          </div>
+            Get Started Now
+          </button>
+          <p className="text-gray-500 text-sm">
+            No credit card required • Free to get started
+          </p>
         </div>
-
-        {/* Steps Grid */}
-        <motion.div
-          ref={ref}
-          variants={containerVariants}
-          initial="hidden"
-          animate={inView ? 'visible' : 'hidden'}
-          role="tabpanel"
-          id={`${activeTab}-panel`}
-          aria-labelledby={`${activeTab}-tab`}
-          className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:gap-8"
-        >
-          <AnimatePresence mode="wait">
-            {
-              /* 6. Provide types for `step` and `index` */
-              steps[activeTab].map((step: StepData, index: number) => (
-                <motion.div
-                  key={`${activeTab}-${index}`}
-                  variants={cardVariants}
-                  className="overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-300 hover:shadow-md"
-                >
-                  <div className="relative aspect-[4/3] bg-gray-100">
-                    <Image
-                      src={step.image}
-                      alt={step.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw,
-                             (max-width: 1200px) 33vw,
-                             400px"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <div className="mb-3 flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-arena-orange/10 text-sm font-semibold text-arena-orange">
-                        {index + 1}
-                      </span>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {step.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm leading-relaxed text-gray-600">
-                      {step.description}
-                    </p>
-                  </div>
-                </motion.div>
-              ))
-            }
-          </AnimatePresence>
-        </motion.div>
       </div>
     </section>
-  );
-};
-
-export default HowItWorksSection;
+  )
+}

@@ -1,13 +1,35 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const scrollToSection = (sectionId: string) => {
+    if (router.pathname !== '/') {
+      // If not on home page, navigate and then scroll
+      router.push('/', undefined, { shallow: true }).then(() => {
+        setTimeout(() => {
+          const section = document.getElementById(sectionId);
+          if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      });
+    } else {
+      // If on home page, just scroll
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
 
   return (
-    <nav className="w-full bg-white border-b border-gray-100">
+    <nav className="w-full bg-white border-b border-gray-100 fixed top-0 z-50">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex items-center justify-between h-16 px-8">
           {/* Left section */}
@@ -17,24 +39,19 @@ const Navbar = () => {
               <span className="ml-2 text-xl font-bold">ARENA</span>
             </Link>
             <div className="flex items-center space-x-8">
-              <Link 
-                href="/how-it-works" 
-                className="text-sm font-semibold hover:text-gray-600 transition-colors"
-              >
-                HOW IT WORKS
-              </Link>
-              <Link 
-                href="/explore-venues" 
+            <button 
+                onClick={() => scrollToSection('explore-venues')}
                 className="text-sm font-semibold hover:text-gray-600 transition-colors"
               >
                 EXPLORE VENUES
-              </Link>
-              <Link 
-                href="/find-teammates" 
+              </button>
+              <button 
+                onClick={() => scrollToSection('how-it-works')}
                 className="text-sm font-semibold hover:text-gray-600 transition-colors"
               >
-                FIND TEAMMATES
-              </Link>
+                HOW IT WORKS
+              </button>
+
             </div>
           </div>
 
@@ -63,12 +80,12 @@ const Navbar = () => {
                 LOGOUT
               </button>
             )}
-            <Link 
-              href="/venue-owners" 
-              className="text-sm font-semibold hover:text-gray-600 transition-colors"
-            >
-              FOR VENUE OWNERS
-            </Link>
+<Link 
+  href="/venue-owners" 
+  className="text-sm font-semibold hover:text-gray-600 transition-colors"
+>
+  FOR VENUE OWNERS
+</Link>
           </div>
         </div>
       </div>
