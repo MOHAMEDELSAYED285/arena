@@ -15,8 +15,13 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', 'pk_test_TYooM
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1']
-
+ALLOWED_HOSTS = [
+    '*',  # Be more specific in production
+    '.vercel.app',
+    'arena-backend-gamma.vercel.app',
+    'localhost',
+    '127.0.0.1'
+]
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -38,8 +43,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this line
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Note: This should come before CommonMiddleware
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -148,12 +154,18 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # Only for development, configure properly for production
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
-    'https://arena-landing.vercel.app',  # Your frontend Vercel domain
+    'https://arena-landing.vercel.app',
+    'https://arena-landing-gamma.vercel.app'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+# Add these lines for handling static files
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 CORS_ALLOW_METHODS = [
     'DELETE',
