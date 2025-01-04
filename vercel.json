@@ -1,14 +1,20 @@
 {
     "version": 2,
+    "buildCommand": "cd frontend && npm run build",
+    "outputDirectory": "frontend/.next",
     "builds": [
       {
         "src": "backend/config/wsgi.py",
         "use": "@vercel/python"
+      },
+      {
+        "src": "frontend/next.config.js",
+        "use": "@vercel/next"
       }
     ],
     "routes": [
       {
-        "src": "/static/(.*)",
+        "src": "/api/(.*)",
         "dest": "backend/config/wsgi.py"
       },
       {
@@ -16,8 +22,12 @@
         "dest": "backend/config/wsgi.py"
       },
       {
-        "src": "/api/(.*)",
+        "src": "/static/(.*)",
         "dest": "backend/config/wsgi.py"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "frontend/$1"
       }
     ]
   }
