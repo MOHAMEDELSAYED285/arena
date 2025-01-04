@@ -150,7 +150,7 @@ SIMPLE_JWT = {
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
-    'https://arena-landing.vercel.app',  # Add your Vercel domain here
+    'https://arena-landing.vercel.app',  # Your frontend Vercel domain
 ]
 
 CORS_ALLOW_CREDENTIALS = True
